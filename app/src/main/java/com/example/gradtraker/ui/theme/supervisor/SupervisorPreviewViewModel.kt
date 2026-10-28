@@ -1,5 +1,5 @@
 
-package com.example.gradtracker.ui.theme.supervisor
+package com.example.gradtraker.ui.theme.supervisor
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,8 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class SupervisorPreviewViewModel : ViewModel() {
 
-    private val _uiState =
-        MutableStateFlow(SupervisorPreviewData())
+    private val _uiState = MutableStateFlow(SupervisorPreviewData())
 
     val uiState: StateFlow<SupervisorPreviewData> =
         _uiState.asStateFlow()

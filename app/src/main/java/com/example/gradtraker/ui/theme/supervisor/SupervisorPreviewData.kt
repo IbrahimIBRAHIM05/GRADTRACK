@@ -1,12 +1,12 @@
 
-package com.example.gradtracker.ui.theme.supervisor
+package com.example.gradtraker.ui.theme.supervisor
 
 data class SupervisorProposal(
     val id: String,
     val title: String,
     val team: String,
     val submittedDate: String,
-    val status: String = "Pending"
+    val status: String
 )
 
 data class SupervisorDeadline(

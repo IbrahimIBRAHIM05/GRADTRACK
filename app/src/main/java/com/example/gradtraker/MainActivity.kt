@@ -1,11 +1,11 @@
-package com.example.gradtracker
+package com.example.gradtraker
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import com.example.gradtracker.ui.theme.supervisor.SupervisorPreviewScreen
+import com.example.gradtraker.ui.theme.supervisor.SupervisorPreviewScreen
 
 class MainActivity : ComponentActivity() {
 

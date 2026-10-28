@@ -12,7 +12,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GradTraker">
         <activity
-            android:name="com.example.gradtracker.MainActivity"            android:exported="true"
+            android:name=".MainActivity"
+            android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.GradTraker"
             android:windowSoftInputMode="adjustResize">
