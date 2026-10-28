@@ -5,7 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import com.example.gradtraker.ui.theme.supervisor.SupervisorPreviewScreen
+import com.example.gradtraker.ui.student.StudentWorkspaceScreen
 
 class MainActivity : ComponentActivity() {
 
@@ -15,9 +21,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface {
-                    SupervisorPreviewScreen()
+                    GradTrackWorkspaceRoot()
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun GradTrackWorkspaceRoot() {
+    var isStudentWorkspace by rememberSaveable { mutableStateOf(false) }
+    if (isStudentWorkspace) {
+        StudentWorkspaceScreen(onSwitchWorkspace = { isStudentWorkspace = false })
+    } else {
+        SupervisorPreviewScreen(onSwitchWorkspace = { isStudentWorkspace = true })
     }
 }

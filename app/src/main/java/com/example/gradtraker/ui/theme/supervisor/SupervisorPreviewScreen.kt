@@ -52,6 +52,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import com.example.gradtraker.navigation.RouteHistory
+import com.example.gradtraker.ui.notifications.NotificationsScreen
+import com.example.gradtraker.ui.notifications.NotificationsViewModel
 
 private val PageBackground = Color(0xFFF8F4EA)
 private val BrandGreen = Color(0xFF25463B)
@@ -76,16 +79,34 @@ private val supervisorDestinations = listOf(
 
 @Composable
 fun SupervisorPreviewScreen(
-    viewModel: SupervisorPreviewViewModel = viewModel()
+    viewModel: SupervisorPreviewViewModel = viewModel(),
+    onSwitchWorkspace: () -> Unit = {}
 ) {
     val data by viewModel.uiState.collectAsState()
-    var selectedDestination by rememberSaveable { mutableStateOf("Dashboard") }
+    var routeHistory by rememberSaveable { mutableStateOf("Dashboard") }
+    var selectedProposalId by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedSubmissionId by rememberSaveable { mutableStateOf<String?>(null) }
+    val currentRoute = RouteHistory.current(routeHistory)
+    val selectedDestination = when (currentRoute) {
+        "Proposal Detail" -> "Proposal Reviews"
+        "Submission Detail" -> "Submission Reviews"
+        else -> currentRoute
+    }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val dashboardScrollState = rememberScrollState()
+    val notificationViewModel: NotificationsViewModel = viewModel(key = "supervisor-notifications")
 
-    BackHandler(enabled = selectedDestination != "Dashboard" && !drawerState.isOpen) {
-        selectedDestination = "Dashboard"
+    fun navigate(route: String) {
+        routeHistory = RouteHistory.push(routeHistory, route)
+    }
+
+    fun back() {
+        routeHistory = RouteHistory.pop(routeHistory)
+    }
+
+    BackHandler(enabled = RouteHistory.canGoBack(routeHistory) && !drawerState.isOpen) {
+        back()
     }
 
     val greeting by produceState(initialValue = greetingForCurrentTime()) {
@@ -151,7 +172,7 @@ fun SupervisorPreviewScreen(
                             },
                             selected = selectedDestination == destination.title,
                             onClick = {
-                                selectedDestination = destination.title
+                                navigate(destination.title)
                                 coroutineScope.launch { drawerState.close() }
                             },
                             modifier = Modifier.padding(vertical = 3.dp),
@@ -170,12 +191,15 @@ fun SupervisorPreviewScreen(
                     Spacer(Modifier.weight(1f))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(onClick = onSwitchWorkspace)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         SupervisorAvatar(initials = "SP", size = 38.dp)
                         Column(Modifier.padding(start = 10.dp)) {
                             Text("Supervisor", color = NavyText, fontWeight = FontWeight.SemiBold)
-                            Text("Supervisor account", color = SecondaryGreen, style = MaterialTheme.typography.bodySmall)
+                            Text("Switch to Student workspace", color = SecondaryGreen, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -190,18 +214,85 @@ fun SupervisorPreviewScreen(
                 )
             }
         ) { innerPadding ->
-            if (selectedDestination == "Dashboard") {
-                SupervisorDashboardContent(
+            when (currentRoute) {
+                "Dashboard" -> SupervisorDashboardContent(
                     data = data,
                     greeting = greeting,
-                    onOpenProposals = { selectedDestination = "Proposal Reviews" },
+                    onOpenProposals = { navigate("Proposal Reviews") },
+                    onReviewProposal = { proposalId ->
+                        selectedProposalId = proposalId
+                        navigate("Proposal Detail")
+                    },
                     scrollState = dashboardScrollState,
                     modifier = Modifier.padding(innerPadding)
                 )
-            } else {
-                LaterPhaseDestination(
-                    title = selectedDestination,
-                    onBack = { selectedDestination = "Dashboard" },
+                "Proposal Reviews" -> SupervisorProposalReviewListScreen(
+                    proposals = data.proposals.filter(::isPendingProposal),
+                    onSelectProposal = { proposalId ->
+                        selectedProposalId = proposalId
+                        navigate("Proposal Detail")
+                    },
+                    onBack = ::back,
+                    modifier = Modifier.padding(innerPadding)
+                )
+                "Proposal Detail" -> {
+                    val proposal = data.proposals.firstOrNull { it.id == selectedProposalId }
+                    if (proposal == null) {
+                        LaterPhaseDestination(
+                            title = "Proposal unavailable",
+                            message = "This proposal is no longer available in the current session.",
+                            onBack = ::back,
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    } else {
+                        SupervisorProposalDetailScreen(
+                            proposal = proposal,
+                            onBack = ::back,
+                            onDecision = { approved -> viewModel.decideProposal(proposal.id, approved) },
+                            onAddComment = { comment -> viewModel.addProposalComment(proposal.id, comment) },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
+                }
+                "Submission Reviews" -> SupervisorSubmissionReviewScreen(
+                    submissions = data.submissions,
+                    selectedSubmissionId = selectedSubmissionId,
+                    onSelectSubmission = { selectedSubmissionId = it },
+                    onOpenSelected = { if (selectedSubmissionId != null) navigate("Submission Detail") },
+                    onBack = ::back,
+                    modifier = Modifier.padding(innerPadding)
+                )
+                "Submission Detail" -> {
+                    val submission = data.submissions.firstOrNull { it.id == selectedSubmissionId }
+                    if (submission == null) {
+                        LaterPhaseDestination(
+                            title = "Submission unavailable",
+                            message = "This submission is no longer available in the current session.",
+                            onBack = ::back,
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    } else {
+                        SupervisorSubmissionDetailScreen(
+                            submission = submission,
+                            onBack = ::back,
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                    }
+                }
+                "Notifications" -> NotificationsScreen(
+                    title = "Notifications",
+                    viewModel = notificationViewModel,
+                    onBack = ::back,
+                    modifier = Modifier.padding(innerPadding)
+                )
+                "Feedback" -> SupervisorFeedbackDestination(
+                    onOpenProposals = { navigate("Proposal Reviews") },
+                    onBack = ::back,
+                    modifier = Modifier.padding(innerPadding)
+                )
+                else -> LaterPhaseDestination(
+                    title = currentRoute,
+                    onBack = ::back,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -284,6 +375,7 @@ private fun SupervisorDashboardContent(
     data: SupervisorPreviewData,
     greeting: String,
     onOpenProposals: () -> Unit,
+    onReviewProposal: (String) -> Unit,
     scrollState: ScrollState,
     modifier: Modifier = Modifier
 ) {
@@ -336,14 +428,15 @@ private fun SupervisorDashboardContent(
         SectionCard(title = "Pending Project Proposals", trailing = {
             TextButton(onClick = onOpenProposals) { Text("View all →", color = SecondaryGreen) }
         }) {
-            if (data.proposals.isEmpty()) {
+            val pendingProposals = data.proposals.filter(::isPendingProposal)
+            if (pendingProposals.isEmpty()) {
                 EmptyState(
                     icon = "▤",
                     title = "No pending proposals",
                     message = "Proposals will appear here when available."
                 )
             } else {
-                data.proposals.forEachIndexed { index, proposal ->
+                pendingProposals.forEachIndexed { index, proposal ->
                     if (index > 0) Spacer(Modifier.height(8.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -361,7 +454,7 @@ private fun SupervisorDashboardContent(
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.weight(1f)
                                 )
-                                TextButton(onClick = onOpenProposals) {
+                                TextButton(onClick = { onReviewProposal(proposal.id) }) {
                                     Text("Review →", color = SecondaryGreen)
                                 }
                             }
@@ -533,6 +626,7 @@ private fun EmptyState(icon: String, title: String, message: String) {
 @Composable
 private fun LaterPhaseDestination(
     title: String,
+    message: String = "$title will be implemented in a later phase.",
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -555,7 +649,7 @@ private fun LaterPhaseDestination(
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            text = laterPhaseMessage(title),
+            text = message,
             color = SecondaryGreen,
             style = MaterialTheme.typography.bodyLarge
         )
@@ -570,9 +664,6 @@ private fun SupervisorPreview() {
     }
 }
 
-private fun laterPhaseMessage(title: String): String =
-    if (title == "Proposal Reviews") {
-        "Proposal review will be implemented in a later phase."
-    } else {
-        "$title will be implemented in a later phase."
-    }
+private fun isPendingProposal(proposal: SupervisorProposal): Boolean =
+    proposal.status.equals("Pending", ignoreCase = true) ||
+        proposal.status.equals("Pending Review", ignoreCase = true)
