@@ -292,6 +292,11 @@ fun SupervisorPreviewScreen(
                 )
                 else -> LaterPhaseDestination(
                     title = currentRoute,
+                    message = if (currentRoute == "Milestone Management") {
+                        "Coming soon — Milestone Management is not implemented yet."
+                    } else {
+                        "$currentRoute will be implemented in a later phase."
+                    },
                     onBack = ::back,
                     modifier = Modifier.padding(innerPadding)
                 )

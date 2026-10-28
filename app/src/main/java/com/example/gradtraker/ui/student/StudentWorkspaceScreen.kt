@@ -206,7 +206,7 @@ private fun StudentAvatar() {
 @Composable
 private fun StudentFutureDestination(title: String, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val message = when (title) {
-        "Milestones" -> "Milestones will be implemented in a later phase."
+        "Milestones" -> "Coming soon — Milestones are not implemented yet."
         else -> "$title is not implemented because no screen requirements or reference are available yet."
     }
     Column(
