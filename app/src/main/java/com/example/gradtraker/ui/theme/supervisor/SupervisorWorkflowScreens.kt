@@ -50,7 +50,6 @@ private val NavyText = Color(0xFF27344C)
 fun SupervisorProposalReviewListScreen(
     proposals: List<SupervisorProposal>,
     onSelectProposal: (String) -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -61,9 +60,7 @@ fun SupervisorProposalReviewListScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Back", color = SecondaryGreen) }
         Column {
-            Text("Proposal Reviews", color = NavyText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             Text("Review submitted project proposals.", color = SecondaryGreen, style = MaterialTheme.typography.bodyMedium)
         }
         if (proposals.isEmpty()) {
@@ -108,7 +105,6 @@ fun SupervisorProposalReviewListScreen(
 @Composable
 fun SupervisorProposalDetailScreen(
     proposal: SupervisorProposal,
-    onBack: () -> Unit,
     onDecision: (approved: Boolean) -> Unit,
     onAddComment: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -128,8 +124,6 @@ fun SupervisorProposalDetailScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Back to Proposals", color = SecondaryGreen) }
-
         WorkflowCard(title = proposal.title) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (proposal.category.isNotBlank()) Text(proposal.category, color = SecondaryGreen)
@@ -311,7 +305,6 @@ fun SupervisorSubmissionReviewScreen(
     selectedSubmissionId: String?,
     onSelectSubmission: (String) -> Unit,
     onOpenSelected: () -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val awaitingReview = submissions.count { it.status.equals("Review", true) || it.status.equals("Awaiting review", true) }
@@ -326,9 +319,7 @@ fun SupervisorSubmissionReviewScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Back", color = SecondaryGreen) }
         Column {
-            Text("Submission Reviews", color = NavyText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             Text("Review recent project submissions.", color = SecondaryGreen)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -372,7 +363,6 @@ fun SupervisorSubmissionReviewScreen(
 @Composable
 fun SupervisorSubmissionDetailScreen(
     submission: SupervisorSubmission,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -383,7 +373,6 @@ fun SupervisorSubmissionDetailScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Back to Submissions", color = SecondaryGreen) }
         WorkflowCard(title = submission.title) {
             DetailField("Team", submission.team)
             DetailField("Type", submission.type)
@@ -401,7 +390,6 @@ fun SupervisorSubmissionDetailScreen(
 @Composable
 fun SupervisorFeedbackDestination(
     onOpenProposals: () -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -412,8 +400,6 @@ fun SupervisorFeedbackDestination(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        TextButton(onClick = onBack) { Text("← Back", color = SecondaryGreen) }
-        Text("Feedback", color = NavyText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(10.dp))
         Text(
             "Feedback is entered from a proposal's review screen. No separate feedback list is shown in the available references.",

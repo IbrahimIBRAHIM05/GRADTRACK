@@ -2,13 +2,11 @@ package com.example.gradtraker.ui.theme.supervisor
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,23 +21,17 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.NavigationDrawerItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.DrawerValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
@@ -50,9 +42,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.util.Calendar
 import com.example.gradtraker.navigation.RouteHistory
+import com.example.gradtraker.navigation.GradTrackBottomNavigation
+import com.example.gradtraker.navigation.GradTrackDestination
+import com.example.gradtraker.navigation.GradTrackPageTopBar
 import com.example.gradtraker.ui.notifications.NotificationsScreen
 import com.example.gradtraker.ui.notifications.NotificationsViewModel
 
@@ -70,7 +64,6 @@ private data class SupervisorDestination(
 private val supervisorDestinations = listOf(
     SupervisorDestination("Dashboard", "⌂"),
     SupervisorDestination("Proposal Reviews", "▤"),
-    SupervisorDestination("Milestone Management", "◷"),
     SupervisorDestination("Submission Reviews", "⇧"),
     SupervisorDestination("Feedback", "✦"),
     SupervisorDestination("Notifications", "◇"),
@@ -86,26 +79,33 @@ fun SupervisorPreviewScreen(
     var routeHistory by rememberSaveable { mutableStateOf("Dashboard") }
     var selectedProposalId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedSubmissionId by rememberSaveable { mutableStateOf<String?>(null) }
+    val saveableStateHolder = rememberSaveableStateHolder()
     val currentRoute = RouteHistory.current(routeHistory)
     val selectedDestination = when (currentRoute) {
         "Proposal Detail" -> "Proposal Reviews"
         "Submission Detail" -> "Submission Reviews"
         else -> currentRoute
     }
-    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val coroutineScope = rememberCoroutineScope()
     val dashboardScrollState = rememberScrollState()
     val notificationViewModel: NotificationsViewModel = viewModel(key = "supervisor-notifications")
+
+    fun selectTopLevel(route: String) {
+        routeHistory = RouteHistory.selectTopLevel(route)
+    }
 
     fun navigate(route: String) {
         routeHistory = RouteHistory.push(routeHistory, route)
     }
 
     fun back() {
-        routeHistory = RouteHistory.pop(routeHistory)
+        routeHistory = if (RouteHistory.canGoBack(routeHistory)) {
+            RouteHistory.pop(routeHistory)
+        } else {
+            RouteHistory.selectTopLevel("Dashboard")
+        }
     }
 
-    BackHandler(enabled = RouteHistory.canGoBack(routeHistory) && !drawerState.isOpen) {
+    BackHandler(enabled = currentRoute != "Dashboard") {
         back()
     }
 
@@ -116,109 +116,37 @@ fun SupervisorPreviewScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = PageBackground,
-                modifier = Modifier.fillMaxHeight()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 20.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = SecondaryGreen,
-                            modifier = Modifier.size(42.dp)
-                        ) {
-                            Text(
-                                text = "G",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(start = 12.dp, top = 6.dp)
-                            )
-                        }
-                        Column(Modifier.padding(start = 12.dp)) {
-                            Text(
-                                text = "GradTrack",
-                                color = BrandGreen,
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Graduation Project Management",
-                                color = SecondaryGreen,
-                                style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                    }
-
-                    Spacer(Modifier.height(24.dp))
-                    supervisorDestinations.forEach { destination ->
-                        NavigationDrawerItem(
-                            label = { Text(destination.title) },
-                            icon = {
-                                Text(
-                                    text = destination.icon,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                            },
-                            selected = selectedDestination == destination.title,
-                            onClick = {
-                                navigate(destination.title)
-                                coroutineScope.launch { drawerState.close() }
-                            },
-                            modifier = Modifier.padding(vertical = 3.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = NavigationDrawerItemDefaults.colors(
-                                selectedContainerColor = LightGreen,
-                                unselectedContainerColor = Color.Transparent,
-                                selectedTextColor = BrandGreen,
-                                unselectedTextColor = SecondaryGreen,
-                                selectedIconColor = BrandGreen,
-                                unselectedIconColor = SecondaryGreen
-                            )
-                        )
-                    }
-
-                    Spacer(Modifier.weight(1f))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onSwitchWorkspace)
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        SupervisorAvatar(initials = "SP", size = 38.dp)
-                        Column(Modifier.padding(start = 10.dp)) {
-                            Text("Supervisor", color = NavyText, fontWeight = FontWeight.SemiBold)
-                            Text("Switch to Student workspace", color = SecondaryGreen, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-            }
-        }
-    ) {
-        Scaffold(
-            containerColor = PageBackground,
-            topBar = {
-                SupervisorTopBar(
-                    onMenuClick = { coroutineScope.launch { drawerState.open() } }
+    Scaffold(
+        containerColor = PageBackground,
+        topBar = {
+            if (currentRoute == "Dashboard") {
+                SupervisorTopBar(onSwitchWorkspace = onSwitchWorkspace)
+            } else {
+                GradTrackPageTopBar(
+                    title = when (currentRoute) {
+                        "Proposal Detail" -> "Proposal Details"
+                        "Submission Detail" -> "Submission Details"
+                        else -> currentRoute
+                    },
+                    onBack = ::back,
+                    onSwitchWorkspace = onSwitchWorkspace
                 )
             }
-        ) { innerPadding ->
+        },
+        bottomBar = {
+            GradTrackBottomNavigation(
+                destinations = supervisorDestinations.map { GradTrackDestination(it.title, it.icon) },
+                selectedTitle = selectedDestination,
+                onSelect = { destination -> selectTopLevel(destination.title) }
+            )
+        }
+    ) { innerPadding ->
+        saveableStateHolder.SaveableStateProvider(currentRoute) {
             when (currentRoute) {
                 "Dashboard" -> SupervisorDashboardContent(
                     data = data,
                     greeting = greeting,
-                    onOpenProposals = { navigate("Proposal Reviews") },
+                    onOpenProposals = { selectTopLevel("Proposal Reviews") },
                     onReviewProposal = { proposalId ->
                         selectedProposalId = proposalId
                         navigate("Proposal Detail")
@@ -232,7 +160,6 @@ fun SupervisorPreviewScreen(
                         selectedProposalId = proposalId
                         navigate("Proposal Detail")
                     },
-                    onBack = ::back,
                     modifier = Modifier.padding(innerPadding)
                 )
                 "Proposal Detail" -> {
@@ -241,13 +168,11 @@ fun SupervisorPreviewScreen(
                         LaterPhaseDestination(
                             title = "Proposal unavailable",
                             message = "This proposal is no longer available in the current session.",
-                            onBack = ::back,
                             modifier = Modifier.padding(innerPadding)
                         )
                     } else {
                         SupervisorProposalDetailScreen(
                             proposal = proposal,
-                            onBack = ::back,
                             onDecision = { approved -> viewModel.decideProposal(proposal.id, approved) },
                             onAddComment = { comment -> viewModel.addProposalComment(proposal.id, comment) },
                             modifier = Modifier.padding(innerPadding)
@@ -259,7 +184,6 @@ fun SupervisorPreviewScreen(
                     selectedSubmissionId = selectedSubmissionId,
                     onSelectSubmission = { selectedSubmissionId = it },
                     onOpenSelected = { if (selectedSubmissionId != null) navigate("Submission Detail") },
-                    onBack = ::back,
                     modifier = Modifier.padding(innerPadding)
                 )
                 "Submission Detail" -> {
@@ -268,36 +192,25 @@ fun SupervisorPreviewScreen(
                         LaterPhaseDestination(
                             title = "Submission unavailable",
                             message = "This submission is no longer available in the current session.",
-                            onBack = ::back,
                             modifier = Modifier.padding(innerPadding)
                         )
                     } else {
                         SupervisorSubmissionDetailScreen(
                             submission = submission,
-                            onBack = ::back,
                             modifier = Modifier.padding(innerPadding)
                         )
                     }
                 }
                 "Notifications" -> NotificationsScreen(
-                    title = "Notifications",
                     viewModel = notificationViewModel,
-                    onBack = ::back,
                     modifier = Modifier.padding(innerPadding)
                 )
                 "Feedback" -> SupervisorFeedbackDestination(
-                    onOpenProposals = { navigate("Proposal Reviews") },
-                    onBack = ::back,
+                    onOpenProposals = { selectTopLevel("Proposal Reviews") },
                     modifier = Modifier.padding(innerPadding)
                 )
                 else -> LaterPhaseDestination(
                     title = currentRoute,
-                    message = if (currentRoute == "Milestone Management") {
-                        "Coming soon — Milestone Management is not implemented yet."
-                    } else {
-                        "$currentRoute will be implemented in a later phase."
-                    },
-                    onBack = ::back,
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -306,7 +219,7 @@ fun SupervisorPreviewScreen(
 }
 
 @Composable
-private fun SupervisorTopBar(onMenuClick: () -> Unit) {
+private fun SupervisorTopBar(onSwitchWorkspace: () -> Unit) {
     Surface(color = Color.White, shadowElevation = 1.dp) {
         Row(
             modifier = Modifier
@@ -315,35 +228,17 @@ private fun SupervisorTopBar(onMenuClick: () -> Unit) {
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                color = Color.Transparent,
-                shape = CircleShape,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clickable(onClick = onMenuClick)
-            ) {
-                Text(
-                    text = "☰",
-                    color = BrandGreen,
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(start = 11.dp, top = 7.dp)
-                )
-            }
+            Text("Supervisor", color = NavyText, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.weight(1f))
             SupervisorAvatar(initials = "SP", size = 36.dp)
             Column(Modifier.padding(start = 10.dp)) {
-                Text(
-                    text = "Supervisor",
-                    color = NavyText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
                 Text(
                     text = "Supervisor workspace",
                     color = SecondaryGreen,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
+            TextButton(onClick = onSwitchWorkspace) { Text("Switch", color = SecondaryGreen) }
         }
     }
 }
@@ -425,13 +320,12 @@ private fun SupervisorDashboardContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                StatCard("Submissions to review", data.submissionsToReview, "Need feedback", Modifier.weight(1f))
-                StatCard("Upcoming deadlines", data.upcomingDeadlines, "Next two weeks", Modifier.weight(1f))
+                StatCard("Submissions to review", data.submissionsToReview, "Need feedback", Modifier.fillMaxWidth())
             }
         }
 
         SectionCard(title = "Pending Project Proposals", trailing = {
-            TextButton(onClick = onOpenProposals) { Text("View all →", color = SecondaryGreen) }
+            TextButton(onClick = onOpenProposals) { Text("View All", color = SecondaryGreen) }
         }) {
             val pendingProposals = data.proposals.filter(::isPendingProposal)
             if (pendingProposals.isEmpty()) {
@@ -632,7 +526,6 @@ private fun EmptyState(icon: String, title: String, message: String) {
 private fun LaterPhaseDestination(
     title: String,
     message: String = "$title will be implemented in a later phase.",
-    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -643,16 +536,6 @@ private fun LaterPhaseDestination(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        TextButton(onClick = onBack) {
-            Text("← Back to Dashboard", color = SecondaryGreen)
-        }
-        Text(
-            text = title,
-            color = NavyText,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(12.dp))
         Text(
             text = message,
             color = SecondaryGreen,
