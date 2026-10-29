@@ -49,7 +49,7 @@ private val NavyText = Color(0xFF27344C)
 @Composable
 fun StudentTasksScreen(
     viewModel: StudentTasksViewModel,
-    onBack: () -> Unit,
+    onOpenTask: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tasks by viewModel.tasks.collectAsState()
@@ -64,10 +64,8 @@ fun StudentTasksScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Back", color = SecondaryGreen) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Tasks", color = NavyText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 Text("Keep your team work organized.", color = SecondaryGreen)
             }
             Button(
@@ -78,8 +76,8 @@ fun StudentTasksScreen(
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StudentTaskSummary("Total tasks", tasks.size, Modifier.weight(1f))
-            StudentTaskSummary("In progress", tasks.count { it.status == "In progress" }, Modifier.weight(1f))
-            StudentTaskSummary("Completed", tasks.count { it.status == "Completed" }, Modifier.weight(1f))
+            StudentTaskSummary("In progress", tasks.count { it.status == StudentTaskStatus.IN_PROGRESS }, Modifier.weight(1f))
+            StudentTaskSummary("Done", tasks.count { it.status == StudentTaskStatus.DONE }, Modifier.weight(1f))
         }
 
         StudentPanel(title = "Team task board") {
@@ -90,17 +88,18 @@ fun StudentTasksScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable { onOpenTask(task.id) }
                             .padding(vertical = 8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(task.title, color = NavyText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            TaskStatusBadge(task.status) { viewModel.advanceStatus(task.id) }
+                            TaskStatusBadge(task.status)
                         }
                         Spacer(Modifier.height(4.dp))
                         val assigneeText = task.assignee.ifBlank { "Unassigned" }
                         val dueText = task.dueDate.ifBlank { "No due date" }
                         Text("Assigned to $assigneeText · $dueText", color = SecondaryGreen, style = MaterialTheme.typography.bodySmall)
-                        Text("Tap the status to update it for this session.", color = SecondaryGreen, style = MaterialTheme.typography.labelSmall)
+                        Text("Open task details.", color = SecondaryGreen, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
@@ -112,9 +111,14 @@ fun StudentTasksScreen(
         AddTaskDialog(
             onDismiss = { showAddTask = false },
             onAdd = { title, assignee, dueDate ->
-                viewModel.addTask(title, assignee, dueDate)
-                addTaskMessage = "Task added for this session only; it is not permanently saved."
-                showAddTask = false
+                when (val result = viewModel.addTask(title, assignee, dueDate)) {
+                    is StudentTaskCreationResult.Created -> {
+                        addTaskMessage = "Task added for this session only; it is not permanently saved."
+                        showAddTask = false
+                    }
+                    StudentTaskCreationResult.MissingTitle -> addTaskMessage = "Enter a task title."
+                    StudentTaskCreationResult.MissingDueDate -> addTaskMessage = "A due date is required."
+                }
             }
         )
     }
@@ -125,18 +129,33 @@ private fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String)
     var title by rememberSaveable { mutableStateOf("") }
     var assignee by rememberSaveable { mutableStateOf("") }
     var dueDate by rememberSaveable { mutableStateOf("") }
+    var validationMessage by rememberSaveable { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add task") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(title, { title = it }, label = { Text("Task title") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(title, { title = it; validationMessage = null }, label = { Text("Task title") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 OutlinedTextField(assignee, { assignee = it }, label = { Text("Assignee (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(dueDate, { dueDate = it }, label = { Text("Due date (optional)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                OutlinedTextField(
+                    dueDate,
+                    { dueDate = it; validationMessage = null },
+                    label = { Text("Due date *") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = validationMessage == "A due date is required."
+                )
+                validationMessage?.let { Text(it, color = Color(0xFFB3261E), style = MaterialTheme.typography.bodySmall) }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onAdd(title, assignee, dueDate) }, enabled = title.isNotBlank()) { Text("Add") }
+            TextButton(
+                onClick = {
+                    if (title.isBlank()) validationMessage = "Enter a task title."
+                    else if (dueDate.isBlank()) validationMessage = "A due date is required."
+                    else onAdd(title, assignee, dueDate)
+                }
+            ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
@@ -145,7 +164,6 @@ private fun AddTaskDialog(onDismiss: () -> Unit, onAdd: (String, String, String)
 @Composable
 fun StudentProfileScreen(
     viewModel: StudentProfileViewModel,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -161,9 +179,7 @@ fun StudentProfileScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Back", color = SecondaryGreen) }
         Column {
-            Text("Profile & Settings", color = NavyText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             Text("Keep your graduation project organized and moving forward.", color = SecondaryGreen)
         }
 
@@ -297,9 +313,32 @@ private fun StudentTaskSummary(title: String, count: Int, modifier: Modifier = M
 }
 
 @Composable
-private fun TaskStatusBadge(status: String, onClick: () -> Unit) {
-    Surface(color = LightGreen, shape = RoundedCornerShape(50), modifier = Modifier.clickable(onClick = onClick)) {
+private fun TaskStatusBadge(status: String) {
+    Surface(color = LightGreen, shape = RoundedCornerShape(50)) {
         Text(status, color = SecondaryGreen, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+    }
+}
+
+@Composable
+fun StudentTaskDetailScreen(task: StudentTask, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .background(PageBackground)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        StudentPanel(title = task.title) {
+            ProfileValue("Due date", task.dueDate, false) {}
+            ProfileValue("Assignee", task.assignee.ifBlank { "Unassigned" }, false) {}
+            TaskStatusBadge(task.status)
+        }
+        Text(
+            "Task changes are held in memory for this session. Task submission is not connected in this app.",
+            color = SecondaryGreen,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }
 

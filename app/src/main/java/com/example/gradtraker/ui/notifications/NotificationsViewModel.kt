@@ -11,7 +11,8 @@ data class NotificationEntry(
     val message: String,
     val timestamp: String,
     val category: String,
-    val isRead: Boolean = false
+    val isRead: Boolean = false,
+    val taskId: String? = null
 )
 
 class NotificationsViewModel : ViewModel() {

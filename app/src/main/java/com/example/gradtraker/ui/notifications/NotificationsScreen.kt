@@ -37,9 +37,8 @@ private val NavyText = Color(0xFF27344C)
 
 @Composable
 fun NotificationsScreen(
-    title: String,
     viewModel: NotificationsViewModel,
-    onBack: () -> Unit,
+    onNotificationSelected: (NotificationEntry) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val notifications by viewModel.notifications.collectAsState()
@@ -53,10 +52,8 @@ fun NotificationsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        TextButton(onClick = onBack) { Text("← Back", color = SecondaryGreen) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(title, color = NavyText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
                 Text("Recent activity", color = SecondaryGreen, style = MaterialTheme.typography.bodyMedium)
             }
             TextButton(onClick = viewModel::markAllRead, enabled = unreadCount > 0) {
@@ -90,7 +87,10 @@ fun NotificationsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.markRead(notification.id) },
+                        .clickable {
+                            viewModel.markRead(notification.id)
+                            onNotificationSelected(notification)
+                        },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {

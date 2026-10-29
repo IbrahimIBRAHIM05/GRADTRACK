@@ -3,10 +3,14 @@ package com.example.gradtraker
 import com.example.gradtraker.ui.notifications.NotificationEntry
 import com.example.gradtraker.ui.notifications.NotificationsViewModel
 import com.example.gradtraker.ui.student.StudentProfileViewModel
+import com.example.gradtraker.ui.student.StudentTaskCreationResult
+import com.example.gradtraker.ui.student.StudentTaskStatus
+import com.example.gradtraker.ui.student.TaskSubmissionOutcome
 import com.example.gradtraker.ui.student.StudentTasksViewModel
 import com.example.gradtraker.ui.theme.supervisor.SupervisorPreviewData
 import com.example.gradtraker.ui.theme.supervisor.SupervisorPreviewViewModel
 import com.example.gradtraker.ui.theme.supervisor.SupervisorProposal
+import com.example.gradtraker.navigation.RouteHistory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -60,19 +64,59 @@ class WorkflowViewModelsTest {
     }
 
     @Test
-    fun studentTaskCreationRequiresTitleAndStatusCanAdvance() {
+    fun studentTaskRequiresDueDateAndStartsToDo() {
         val viewModel = StudentTasksViewModel()
-        viewModel.addTask("  ", "", "")
+        val missingDueDate = viewModel.addTask("Write report", "", "  ")
+        assertEquals(StudentTaskCreationResult.MissingDueDate, missingDueDate)
         assertTrue(viewModel.tasks.value.isEmpty())
 
-        viewModel.addTask("Write report", "", "")
-        val task = viewModel.tasks.value.single()
-        assertEquals("To do", task.status)
+        val missingTitle = viewModel.addTask("  ", "", "2026-11-01")
+        assertEquals(StudentTaskCreationResult.MissingTitle, missingTitle)
+        assertTrue(viewModel.tasks.value.isEmpty())
 
-        viewModel.advanceStatus(task.id)
-        assertEquals("In progress", viewModel.tasks.value.single().status)
-        viewModel.advanceStatus(task.id)
-        assertEquals("Completed", viewModel.tasks.value.single().status)
+        val created = viewModel.addTask("Write report", "", "2026-11-01")
+        assertTrue(created is StudentTaskCreationResult.Created)
+        assertEquals(StudentTaskStatus.TO_DO, viewModel.tasks.value.single().status)
+    }
+
+    @Test
+    fun openingToDoTaskStartsWorkAndReopeningDoneDoesNotResetIt() {
+        val viewModel = StudentTasksViewModel()
+        assertTrue(viewModel.javaClass.methods.none { it.name == "advanceStatus" || it.name == "setTaskStatus" })
+        val task = (viewModel.addTask("Write report", "", "2026-11-01") as StudentTaskCreationResult.Created).task
+
+        viewModel.openTask(task.id)
+        assertEquals(StudentTaskStatus.IN_PROGRESS, viewModel.tasks.value.single().status)
+
+        viewModel.onSubmissionResult(task.id, TaskSubmissionOutcome.SUCCEEDED)
+        viewModel.openTask(task.id)
+        assertEquals(StudentTaskStatus.DONE, viewModel.tasks.value.single().status)
+    }
+
+    @Test
+    fun onlySuccessfulSubmissionCanMarkAnInProgressTaskDone() {
+        val viewModel = StudentTasksViewModel()
+        val task = (viewModel.addTask("Write report", "", "2026-11-01") as StudentTaskCreationResult.Created).task
+        viewModel.openTask(task.id)
+
+        viewModel.onSubmissionResult(task.id, TaskSubmissionOutcome.FAILED)
+        assertEquals(StudentTaskStatus.IN_PROGRESS, viewModel.tasks.value.single().status)
+        viewModel.onSubmissionResult(task.id, TaskSubmissionOutcome.CANCELLED)
+        assertEquals(StudentTaskStatus.IN_PROGRESS, viewModel.tasks.value.single().status)
+        viewModel.onSubmissionResult(task.id, TaskSubmissionOutcome.SUCCEEDED)
+        assertEquals(StudentTaskStatus.DONE, viewModel.tasks.value.single().status)
+    }
+
+    @Test
+    fun selectingTopLevelDestinationClearsDetailHistoryAndDashboardDoesNotDuplicate() {
+        assertEquals("Dashboard", RouteHistory.push("Dashboard", "Dashboard"))
+        val detail = RouteHistory.push("Dashboard", "Submission Details")
+        val switched = RouteHistory.selectTopLevel("Notifications")
+        val dashboard = RouteHistory.selectTopLevel("Dashboard")
+
+        assertEquals("Dashboard", dashboard)
+        assertFalse(RouteHistory.canGoBack(dashboard))
+        assertEquals("Proposal Reviews", RouteHistory.parent("Proposal Reviews\u001FProposal Details"))
     }
 
     @Test
