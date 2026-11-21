@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "447284092819",
+    "project_id": "gradtrack-64a6b",
+    "storage_bucket": "gradtrack-64a6b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447284092819:android:a1ab322ce74b2849381266",
+        "android_client_info": {
+          "package_name": "com.example.gradtraker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCgTsZF2LixnX7fQlKLntWOGbcpWOHz_Qo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
