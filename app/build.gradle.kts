@@ -3,6 +3,16 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Firebase: the Google Services plugin needs app/google-services.json
+// (Firebase Console > Project settings > Your apps > Android app).
+// It is applied only when that file exists, so the project keeps building
+// until the file is downloaded.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.warn("Firebase: app/google-services.json not found. Google Services plugin not applied.")
+}
+
 android {
     namespace = "com.example.gradtraker"
     compileSdk {
@@ -47,6 +57,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
